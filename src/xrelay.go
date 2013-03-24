@@ -10,13 +10,12 @@ import (
     "fmt"
     "log"
     "net"
-    "strconv"
 )
 
 var (
     LISTEN   string  // listen address, e.g. 0.0.0.0:1080
     BACKEND  string  // backend address, e.g. foo.com:80
-    CIPHER   uint8   // XOR cipher key, default 0
+    CIPHER   []byte  // XOR cipher key, default is nil
 )
 
 func isUseOfClosedConn(err error) bool {
@@ -29,6 +28,8 @@ func iobridge(src io.Reader, dst io.Writer, shutdown chan bool) {
         shutdown <- true
     }()
 
+    keylen, keypos := len(CIPHER), 0
+
     buf := make([]byte, 8192)
     for {
         n, err := src.Read(buf)
@@ -39,9 +40,13 @@ func iobridge(src io.Reader, dst io.Writer, shutdown chan bool) {
             break
         }
 
-        if CIPHER != 0 {
+        if keylen > 0 {
             for i := 0; i < n; i++ {
-                buf[i] ^= CIPHER
+                buf[i] ^= CIPHER[keypos]
+                keypos += 1
+                if keypos >= keylen {
+                    keypos -= keylen
+                }
             }
         }
 
@@ -116,11 +121,7 @@ func main() {
     BACKEND = os.Args[2]
 
     if len(os.Args) > 3 {
-        cipher, err := strconv.Atoi(os.Args[3])
-        if err != nil {
-            log.Fatal("Invalid cipher key")
-        }
-        CIPHER = uint8(cipher)
+        CIPHER  = []byte(os.Args[3])
     }
 
     ListenAndServe()
