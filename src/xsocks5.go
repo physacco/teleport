@@ -10,6 +10,7 @@ import (
     "fmt"
     "log"
     "net"
+    "time"
     "strings"
     "strconv"
 )
@@ -91,6 +92,10 @@ func isUseOfClosedConn(err error) bool {
     return ok && operr.Err.Error() == "use of closed network connection"
 }
 
+func afterSeconds(nsecs time.Duration) time.Time {
+    return time.Now().Add(time.Second * nsecs)
+}
+
 func iobridge(src io.Reader, dst io.Writer, shutdown chan bool) {
     defer func() {
         shutdown <- true
@@ -98,6 +103,21 @@ func iobridge(src io.Reader, dst io.Writer, shutdown chan bool) {
 
     buf := make([]byte, 8192)
     for {
+        var reader *io.Reader
+        if xrw, ok := src.(XReadWriter); ok {
+            reader = &(xrw.XReader.Reader)
+        } else {
+            reader = &src
+        }
+
+        if conn, ok := (*reader).(*net.TCPConn); ok {
+            err := conn.SetReadDeadline(afterSeconds(300))
+            if err != nil {
+                log.Printf("error SetReadDeadline %s: %s\n", src, err)
+                break
+            }
+        }
+
         n, err := src.Read(buf)
         if err != nil {
             if !(err == io.EOF || isUseOfClosedConn(err)) {
@@ -106,9 +126,24 @@ func iobridge(src io.Reader, dst io.Writer, shutdown chan bool) {
             break
         }
 
+        var writer *io.Writer
+        if xrw, ok := dst.(XReadWriter); ok {
+            writer = &(xrw.XWriter.Writer)
+        } else {
+            writer = &dst
+        }
+
+        if conn, ok := (*writer).(*net.TCPConn); ok {
+            err := conn.SetWriteDeadline(afterSeconds(120))
+            if err != nil {
+                log.Printf("error SetWriteDeadline %s: %s\n", dst, err)
+                break
+            }
+        }
+
         _, err = dst.Write(buf[:n])
         if err != nil {
-            log.Printf("error writing %s: %s\n", src, err)
+            log.Printf("error writing %s: %s\n", dst, err)
             break
         }
     }
@@ -178,6 +213,11 @@ func handleConnection(frontconn net.Conn) {
         frontconn.Close()
         log.Println("DISCONNECTED frontend", frontconn, frontaddr)
     }()
+
+    err := frontconn.SetDeadline(afterSeconds(60))
+    if err != nil {
+        panic(err)
+    }
 
     if len(CIPHER) > 0 {
         handleSocks5(newXReadWriter(frontconn, CIPHER))
