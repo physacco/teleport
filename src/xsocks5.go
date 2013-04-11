@@ -6,13 +6,14 @@ package main
 
 import (
     "io"
-    "os"
     "fmt"
     "log"
     "net"
+    "flag"
     "time"
-    "strings"
+    "runtime"
     "strconv"
+    "strings"
 )
 
 var (
@@ -306,17 +307,44 @@ func ListenAndServe() {
     }
 }
 
+const Usage = `Usage: xsocks5 [Options] LISTEN
+
+Options:
+    --cipher CIPHER         specify cipher string
+    --help                  print this help message and exit
+    --version               print the version and exit
+`
+
+func Version() string {
+    return fmt.Sprintf("xsocks5 0.1.0 [%s-%s] (%s)",
+        runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
 func main() {
-    if len(os.Args) < 2 {
-        fmt.Println("Usage: socks5 LISTEN [CIPHER]")
+    cipher := flag.String("cipher", "", "specify cipher string")
+    help := flag.Bool("help", false, "print this help message and exit")
+    version := flag.Bool("version", false, "print the version and exit")
+
+    flag.Parse()
+    CIPHER = []byte(*cipher)
+
+    if *help {
+        fmt.Println(Usage)
         return
     }
 
-    LISTEN = os.Args[1]
-
-    if len(os.Args) > 2 {
-        CIPHER  = []byte(os.Args[2])
+    if *version {
+        fmt.Println(Version())
+        return
     }
+
+    args := flag.Args()
+    if len(args) < 1 {
+        fmt.Println(Usage)
+        return
+    }
+
+    LISTEN = args[0]
 
     ListenAndServe()
 }
