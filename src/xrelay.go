@@ -6,10 +6,11 @@ package main
 
 import (
     "io"
-    "os"
     "fmt"
     "log"
     "net"
+    "flag"
+    "runtime"
 )
 
 var (
@@ -158,18 +159,45 @@ func ListenAndServe() {
     }
 }
 
+const Usage = `Usage: xrelay [Options] LISTEN BACKEND
+
+Options:
+    --cipher CIPHER         specify cipher string
+    --help                  print this help message and exit
+    --version               print the version and exit
+`
+
+func Version() string {
+    return fmt.Sprintf("xrelay 0.1.0 [%s-%s] (%s)",
+        runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
 func main() {
-    if len(os.Args) < 3 {
-        fmt.Println("Usage: xrelay LISTEN BACKEND [CIPHER]")
+    cipher := flag.String("cipher", "", "specify cipher string")
+    help := flag.Bool("help", false, "print this help message and exit")
+    version := flag.Bool("version", false, "print the version and exit")
+
+    flag.Parse()
+    CIPHER = []byte(*cipher)
+
+    if *help {
+        fmt.Println(Usage)
         return
     }
 
-    LISTEN  = os.Args[1]
-    BACKEND = os.Args[2]
-
-    if len(os.Args) > 3 {
-        CIPHER  = []byte(os.Args[3])
+    if *version {
+        fmt.Println(Version())
+        return
     }
+
+    args := flag.Args()
+    if len(args) < 2 {
+        fmt.Println(Usage)
+        return
+    }
+
+    LISTEN  = args[0]
+    BACKEND = args[1]
 
     ListenAndServe()
 }
