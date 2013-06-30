@@ -1,0 +1,95 @@
+#!/bin/sh
+
+# xrelay: xrelay init script for Redhat/Fedora.
+# Written by physacco. 2013/06/30
+
+# To start at boot time:
+# 1. modify configuration variables.
+# 2. copy this file to /etc/init.d
+# 3. chkconfig xrelay on
+
+# ---------------------
+# chkconfig: 2345 50 50
+# ---------------------
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+[ "$NETWORKING" = "no" ] && exit 0
+
+# Configuration variables.
+DAEMON="xrelay"
+DAEMON_USR="nobody"
+DAEMON_DIR="/tmp"
+DAEMON_EXE="/usr/bin/$DAEMON"
+DAEMON_LOG="/var/log/$DAEMON.log"
+DAEMON_PID="/var/run/$DAEMON.pid"
+LOCAL_ADDR="localhost:1080"
+REMOTE_ADDR="localhost:32160"
+CIPHER="cipher-key"
+
+start()
+{
+  [ -x "$DAEMON_EXE" ] || exit 5
+  echo -n "Starting $DAEMON: "
+  daemon daemonize -c $DAEMON_DIR -p $DAEMON_PID -e $DAEMON_LOG \
+    -u $DAEMON_USR $DAEMON_EXE --cipher $CIPHER $LOCAL_ADDR $REMOTE_ADDR
+  RETVAL=$?
+  echo
+  return $RETVAL
+}
+
+stop()
+{
+  echo -n "Stopping $DAEMON: "
+  killproc -p "$DAEMON_PID"
+  RETVAL=$?
+  echo
+  return $RETVAL
+}
+
+restart()
+{
+  stop
+  start
+}
+
+rh_status() {
+  status -p "$DAEMON_PID" $DAEMON
+}
+
+rh_status_q() {
+  rh_status &>/dev/null
+}
+
+case "$1" in
+  start)
+    rh_status_q && exit 0
+    start
+    ;;
+  stop)
+    rh_status_q || exit 0
+    stop
+    ;;
+  restart|force-reload)
+    restart
+    ;;
+  try-restart|condrestart)
+    rh_status_q || exit 7
+    restart
+    ;;
+  reload)
+    exit 3
+    ;;
+  status|status_q)
+    rh_$1
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|reload|status}"
+    exit 2
+    ;;
+esac
