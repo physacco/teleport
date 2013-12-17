@@ -102,15 +102,12 @@ func performConnect(backend string, frontconn net.Conn) {
     frontconn.Write(buf)
 
     // bridge connection
-    shutdown := make(chan bool)
+    shutdown := make(chan bool, 2)
     go iobridge(frontconn, backconn, shutdown)
     go iobridge(backconn, frontconn, shutdown)
 
     // wait for either side to close
-    select {
-    case <-shutdown:
-        return
-    }
+    <-shutdown
 }
 
 func handleConnection(frontconn net.Conn) {
