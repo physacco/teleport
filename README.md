@@ -13,3 +13,5 @@ It is assumed that you have set [GOPATH](https://github.com/golang/go/wiki/GOPAT
     # install the relayer
     go get github.com/physacco/teleport/xrelay
 
+The newly compiled executables (_xsocks5[.exe]_, _xrelay[.exe]_) will be placed in your `$GOPATH/bin` directory.
+
