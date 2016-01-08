@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# xrelayctl: xrelay init script for Debian/Ubuntu.
+# Written by physacco. 2015/01/11
+
+# To start at boot time:
+# 1. modify configuration variables.
+# 2. copy this file to /etc/init.d
+# 3. update-rc.d xrelayctl defaults
+
+NAME=xrelay
+DESC="teleport client"
+LOCAL_ADDR="localhost:1080"
+REMOTE_ADDR="localhost:32160"
+CIPHER="cipher-key"
+
+PROGRAM_EXEC=/usr/bin/xrelay
+PROGRAM_ARGS="--cipher $CIPHER $LOCAL_ADDR $REMOTE_ADDR"
+PIDFILE=/tmp/$NAME.pid
+
+# Exit if the executable does not exist
+[ -x "$PROGRAM_EXEC" ] || exit 0
+
+# Define LSB log_* functions.
+. /lib/lsb/init-functions
+
+do_start()
+{
+  # Return
+  #   0 if daemon has been started
+  #   1 if daemon was already running
+  #   other if daemon could not be started or a failure occured
+  start-stop-daemon --start --quiet --background --pidfile $PIDFILE --make-pidfile --exec $PROGRAM_EXEC -- $PROGRAM_ARGS
+}
+
+do_stop()
+{
+  # Return
+  #   0 if daemon has been stopped
+  #   1 if daemon was already stopped
+  #   other if daemon could not be stopped or a failure occurred
+  start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --exec $PROGRAM_EXEC
+}
+
+case "$1" in
+  start)
+    echo "Starting $DESC" "$DAEMON"
+    do_start
+    ;;
+  stop)
+    echo "Stopping $DESC" "$DAEMON"
+    do_stop
+    ;;
+  restart)
+    $0 stop
+    $0 start
+    ;;
+  status)
+    status_of_proc -p $PIDFILE $PROGRAM_EXEC $NAME && exit 0 || exit $?
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}" >&2
+    exit 3
+    ;;
+esac
